@@ -40,6 +40,7 @@ const defaultRegions = new Map([
   ["retro_8bit",[0.11,1.20]],["robotic",[0.33,1.43]],
   ["cinematic",[0.04,1.80]],["country_drawl",[2.04,3.95]],
   ["tts_flat",[2.25,3.90]],["binaural_asmr",[2.40,3.75]],
+  ["lofi_tape",[2.23,3.80]],["child_joy",[1.10,2.90]],["sports_announce",[1.39,3.80]],
 ]);
 
 const grid = document.getElementById("grid");
