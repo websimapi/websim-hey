@@ -1,5 +1,5 @@
 /* A friendly, geometric sans-serif */
-@import url("https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&display=swap");
 
 /* Reset and base styles */
 :root {
@@ -8,7 +8,7 @@
   --muted: #666;
   --line: #eaeaea;
   --accent: #111;
-  --font-base: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+  --font-base: "Noto Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
     Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
     "Segoe UI Symbol";
 }

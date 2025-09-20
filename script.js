@@ -1,3 +1,5 @@
+
+```javascript
 const clips = [
   { id: "clean_bright_f", label: "Clean Bright — F", key: "1", file: "hey_clean_bright_f.mp3" },
   { id: "clean_bright_m", label: "Clean Bright — M", key: "2", file: "hey_clean_bright_m.mp3" },
@@ -16,11 +18,18 @@ const clips = [
   { id: "vaporwave", label: "Vaporwave Lo‑Fi", key: "e", file: "hey_vaporwave.mp3" },
   { id: "brit_announce", label: "British Announcer", key: "r", file: "hey_brit_announce.mp3" },
   { id: "monster_low", label: "Monster Low", key: "t", file: "hey_monster_low.mp3" },
+  { id: "glitch_fx", label: "Glitch FX", key: "y", file: "hey_glitch_fx.mp3" },
+  { id: "child_joy", label: "Childlike Joy", key: "u", file: "hey_child_joy.mp3" },
+  { id: "sports_announce", label: "Sports Announcer", key: "i", file: "hey_sports_announce.mp3" },
+  { id: "soft_piano_bed", label: "Soft Piano Bed", key: "o", file: "hey_soft_piano_bed.mp3" },
+  { id: "choir_epic", label: "Epic Choir", key: "p", file: "hey_choir_epic.mp3" },
+  { id: "synthwave_lead", label: "Synthwave Lead", key: "a", file: "hey_synthwave_lead.mp3" },
+  { id: "airport_pa", label: "Airport PA", key: "s", file: "hey_airport_pa.mp3" },
+  { id: "cartoon_bounce", label: "Cartoon Bounce", key: "d", file: "hey_cartoon_bounce.mp3" },
 ];
 
 const grid = document.getElementById("grid");
 const audioPlayer = createAudioPlayer();
-audioPlayer.load(clips);
 
 function createAudioPlayer() {
   let audioContext;
@@ -32,25 +41,18 @@ function createAudioPlayer() {
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
   };
-  
+
   document.addEventListener('click', initContext, { once: true });
   document.addEventListener('keydown', initContext, { once: true });
 
   const load = (clipsToLoad) => {
-    clipsToLoad.forEach(clip => {
-      fetch(clip.file)
-        .then(response => response.arrayBuffer())
-        .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
-        .then(audioBuffer => {
-          audioBuffers.set(clip.id, audioBuffer);
-        })
-        .catch(e => console.error(`Error loading audio ${clip.id}:`, e));
-    });
+    // Defer decoding until first user gesture; mark placeholders
+    clipsToLoad.forEach(clip => { if (!audioBuffers.has(clip.id)) audioBuffers.set(clip.id, null); });
   };
 
-  const play = (id, { gain = 1.0, onEnded = () => {} } = {}) => {
+  const play = async (id, { gain = 1.0, onEnded = () => {} } = {}) => {
     if (!audioContext) initContext();
-    if (!audioContext || !audioBuffers.has(id)) return;
+    if (!audioContext) return;
 
     stop();
 
@@ -58,8 +60,18 @@ function createAudioPlayer() {
     gainNode.gain.setValueAtTime(gain, audioContext.currentTime);
     gainNode.connect(audioContext.destination);
 
+    let buf = audioBuffers.get(id);
+    if (!buf) {
+      try {
+        const clip = clips.find(c => c.id === id);
+        const res = await fetch(clip.file);
+        const ab = await res.arrayBuffer();
+        buf = await audioContext.decodeAudioData(ab);
+        audioBuffers.set(id, buf);
+      } catch (e) { console.error(`Error decoding ${id}`, e); return; }
+    }
     source = audioContext.createBufferSource();
-    source.buffer = audioBuffers.get(id);
+    source.buffer = buf;
     source.connect(gainNode);
     source.onended = onEnded;
     source.start(0);
@@ -107,7 +119,7 @@ function render() {
 document.getElementById("btn-random").addEventListener("click", () => {
   const shuffled = shuffle([...clips]);
   let i = 0;
-  
+
   function playNext() {
     if (i < shuffled.length) {
       audioPlayer.play(shuffled[i].id, { onEnded: playNext });
@@ -126,3 +138,4 @@ window.addEventListener("keydown", (e) => {
 });
 
 render();
+audioPlayer.load(clips);
