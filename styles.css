@@ -100,3 +100,8 @@ h1 { font-size: 2rem; line-height: 1.1; margin-bottom: 0.5rem; }
 
 /* Footer */
 footer { text-align: center; padding-top: 2rem; border-top: 1px solid var(--line); margin-top: 2rem; }
+
+/* Wave */
+.wave { height: 64px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.wave canvas { width: 100%; height: 100%; display: block; }
+.selmeta { display:flex; justify-content: space-between; align-items:center; font-size:.85rem; color:var(--muted); }

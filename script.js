@@ -58,31 +58,20 @@ function createAudioPlayer() {
     clipsToLoad.forEach(clip => { if (!audioBuffers.has(clip.id)) audioBuffers.set(clip.id, null); });
   };
 
+  const ensureBuffer = async (id) => {
+    if (!audioContext) initContext(); let buf = audioBuffers.get(id);
+    if (buf) return buf; const clip = clips.find(c => c.id === id);
+    const res = await fetch(clip.file); const ab = await res.arrayBuffer();
+    buf = await audioContext.decodeAudioData(ab); audioBuffers.set(id, buf); return buf;
+  };
+
   const play = async (id, { gain = 1.0, onEnded = () => {} } = {}) => {
-    if (!audioContext) initContext();
-    if (!audioContext) return;
-
-    stop();
-
-    const gainNode = audioContext.createGain();
-    gainNode.gain.setValueAtTime(gain, audioContext.currentTime);
+    if (!audioContext) initContext(); if (!audioContext) return; stop();
+    const gainNode = audioContext.createGain(); gainNode.gain.setValueAtTime(gain, audioContext.currentTime);
     gainNode.connect(audioContext.destination);
-
-    let buf = audioBuffers.get(id);
-    if (!buf) {
-      try {
-        const clip = clips.find(c => c.id === id);
-        const res = await fetch(clip.file);
-        const ab = await res.arrayBuffer();
-        buf = await audioContext.decodeAudioData(ab);
-        audioBuffers.set(id, buf);
-      } catch (e) { console.error(`Error decoding ${id}`, e); return; }
-    }
-    source = audioContext.createBufferSource();
-    source.buffer = buf;
-    source.connect(gainNode);
-    source.onended = onEnded;
-    source.start(0);
+    try { const buf = await ensureBuffer(id); source = audioContext.createBufferSource();
+      source.buffer = buf; source.connect(gainNode); source.onended = onEnded; source.start(0);
+    } catch(e){ console.error(`Error decoding ${id}`, e); }
   };
 
   const stop = () => {
@@ -93,7 +82,7 @@ function createAudioPlayer() {
     }
   };
 
-  return { load, play, stop };
+  return { load, play, stop, ensureBuffer };
 }
 
 function makeCard(c) {
@@ -104,18 +93,37 @@ function makeCard(c) {
       <div class="title">${c.label}</div>
       <span class="kbd">${c.key}</span>
     </div>
+    <div class="wave"><canvas></canvas></div>
+    <div class="selmeta"><span class="times" aria-live="polite">Select a region</span>
+      <button class="iconbtn" data-action="dlsel" title="Download selection" aria-label="Download selection" disabled>⬇︎</button></div>
     <div class="row">
       <div class="controls">
         <button class="iconbtn" data-action="play" aria-label="Play clip">▶︎</button>
-        <a class="iconbtn" href="${c.file}" download aria-label="Download clip">⬇︎</a>
+        <a class="iconbtn" href="${c.file}" download aria-label="Download full clip">⬇︎</a>
       </div>
     </div>
   `;
   el.querySelector('[data-action="play"]').addEventListener("click", () => audioPlayer.play(c.id));
   el.addEventListener("mouseenter", () => audioPlayer.play(c.id, { gain: 0.6 }));
   el.addEventListener("mouseleave", () => audioPlayer.stop());
+  attachWaveInteractions(el, c);
   return el;
 }
+
+function attachWaveInteractions(el, c){
+  const cv = el.querySelector('canvas'); const times = el.querySelector('.times'); const btn = el.querySelector('[data-action="dlsel"]');
+  let sel=null, dragging=false, dur=0;
+  const toTime = x => Math.max(0, Math.min(1, x / cv.clientWidth));
+  audioPlayer.ensureBuffer(c.id).then(buf=>{ dur=buf.duration; drawWaveform(cv, buf, sel); });
+  cv.addEventListener('pointerdown', e=>{ dragging=true; sel={start:toTime(e.offsetX), end:toTime(e.offsetX)}; btn.disabled=true; });
+  cv.addEventListener('pointermove', e=>{ if(!dragging) return; sel.end=toTime(e.offsetX); audioPlayer.ensureBuffer(c.id).then(buf=>{ drawWaveform(cv, buf, sel); const a=Math.min(sel.start,sel.end)*dur, b=Math.max(sel.start,sel.end)*dur; times.textContent=`${a.toFixed(2)}s – ${b.toFixed(2)}s`; });});
+  window.addEventListener('pointerup', ()=>{ if(!dragging) return; dragging=false; if(Math.abs(sel.end-sel.start)<0.005){ sel=null; btn.disabled=true; times.textContent='Select a region'; audioPlayer.ensureBuffer(c.id).then(buf=>drawWaveform(cv,buf,sel)); } else { btn.disabled=false; }});
+  btn.addEventListener('click', async ()=>{ const buf=await audioPlayer.ensureBuffer(c.id); const a=Math.min(sel.start,sel.end)*dur, b=Math.max(sel.start,sel.end)*dur; const blob=bufferToWav(buf,a,b); const url=URL.createObjectURL(blob); const ael=document.createElement('a'); ael.href=url; ael.download=`${c.id}_${a.toFixed(2)}-${b.toFixed(2)}.wav`; document.body.appendChild(ael); ael.click(); ael.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000); });
+}
+
+function bufferToWav(buffer, start=0, end=null){const rate=buffer.sampleRate,ch=buffer.numberOfChannels;const s=Math.max(0,Math.floor(start*rate)),e=Math.min(buffer.length,Math.floor((end??(buffer.length/rate))*rate));const frames=Math.max(0,e-s);const inter=new Float32Array(frames*ch);for(let c=0;c<ch;c++){const data=buffer.getChannelData(c).subarray(s,e);for(let i=0;i<frames;i++) inter[i*ch+c]=data[i]||0;}const bytes=44+inter.length*2;const buf=new ArrayBuffer(bytes);const v=new DataView(buf);const w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};w(0,'RIFF');v.setUint32(4,bytes-8,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,ch,true);v.setUint32(24,rate,true);v.setUint32(28,rate*ch*2,true);v.setUint16(32,ch*2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,inter.length*2,true);let off=44;for(let i=0;i<inter.length;i++){let s=Math.max(-1,Math.min(1,inter[i]));v.setInt16(off,s<0?s*0x8000:s*0x7FFF,true);off+=2;}return new Blob([buf],{type:'audio/wav'});}
+
+function drawWaveform(cv, buffer, sel){const c=cv.getContext('2d');const w=cv.width=cv.clientWidth,h=cv.height=cv.clientHeight;c.clearRect(0,0,w,h);c.fillStyle='#eee';c.fillRect(0,0,w,h);const data=buffer.getChannelData(0);const step=Math.ceil(data.length/w);c.strokeStyle='#111';c.beginPath();for(let x=0;x<w;x++){let min=1,max=-1;for(let i=0;i<step;i++){const v=data[x*step+i]|0;const y=data[x*step+i]||0;min=Math.min(min,y);max=Math.max(max,y);}c.moveTo(x,(1-min)*.5*h);c.lineTo(x,(1-max)*.5*h);}c.stroke();if(sel){const sx=sel.start*w, ex=sel.end*w;c.fillStyle='rgba(0,0,0,0.12)';c.fillRect(Math.min(sx,ex),0,Math.abs(ex-sx),h);}}
 
 function render() {
   clips.forEach(c => {
