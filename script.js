@@ -35,6 +35,9 @@ const clips = [
   { id: "child_joy", label: "Child Joy", key: ";", file: "hey_child_joy.mp3" },
   { id: "glitch_fx", label: "Glitch FX", key: "'", file: "hey_glitch_fx.mp3" },
 ];
+import { extraClips } from './extra-clips.js';
+clips.push(...extraClips);
+
 const defaultRegions = new Map([
   ["clean_bright_f",[0.32,1.43]],["clean_bright_m",[0.34,1.46]],
   ["retro_8bit",[0.11,1.20]],["robotic",[0.33,1.43]],
@@ -80,10 +83,14 @@ function createAudioPlayer() {
     const gainNode = audioContext.createGain(); gainNode.gain.setValueAtTime(gain, audioContext.currentTime);
     gainNode.connect(audioContext.destination);
     try { const buf = await ensureBuffer(id); source = audioContext.createBufferSource();
+      const meta = clips.find(c => c.id === id); source.playbackRate.value = meta?.fx?.rate || 1;
       currentId = id; const offset = regionSec ? Math.max(0, regionSec.start) : 0;
       const dur = regionSec ? Math.max(0.001, regionSec.end - regionSec.start) : undefined;
       startTime = audioContext.currentTime; currentDur = dur ?? buf.duration; currentRegionNorm = regionSec ? {start: offset/buf.duration, end: regionSec.end/buf.duration} : null;
-      source.buffer = buf; source.connect(gainNode); source.onended = () => { currentId=null; currentRegionNorm=null; onEnded(); }; source.start(0, offset, dur);
+      source.buffer = buf;
+      let node = source;
+      if (meta?.fx?.filter) { const f = audioContext.createBiquadFilter(); Object.assign(f, meta.fx.filter); node.connect(f); node = f; }
+      node.connect(gainNode); source.onended = () => { currentId=null; currentRegionNorm=null; onEnded(); }; source.start(0, offset, dur);
     } catch(e){ console.error(`Error decoding ${id}`, e); }
   };
 
