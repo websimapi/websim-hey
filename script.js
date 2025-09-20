@@ -34,10 +34,19 @@ const clips = [
   { id: "monster_low", label: "Monster Low", key: "]", file: "hey_monster_low.mp3" },
   { id: "child_joy", label: "Child Joy", key: ";", file: "hey_child_joy.mp3" },
   { id: "glitch_fx", label: "Glitch FX", key: "'", file: "hey_glitch_fx.mp3" },
+  { id: "jazz_scat", label: "Jazz DJ Smooth", key: "", file: "hey_jazz_scat.mp3" },
+  { id: "surfer_dude", label: "Surfer Dude", key: "", file: "hey_surfer_dude.mp3" },
+  { id: "goth_whisper", label: "Goth Whisper", key: "", file: "hey_goth_whisper.mp3" },
+  { id: "french_rp", label: "French Accent", key: "", file: "hey_french_rp.mp3" },
+  { id: "spanish_tv", label: "Spanish TV Style", key: "", file: "hey_spanish_tv.mp3" },
+  { id: "anime_hype", label: "Anime Hype", key: "", file: "hey_anime_hype.mp3" },
+  { id: "newscaster", label: "News Anchor", key: "", file: "hey_newscaster.mp3" },
+  { id: "drill_sergeant", label: "Drill Sergeant", key: "", file: "hey_drill_sergeant.mp3" },
+  { id: "pirate", label: "Pirate Voice", key: "", file: "hey_pirate.mp3" },
+  { id: "beatbox_tag", label: "Beatbox Tag", key: "", file: "hey_beatbox_tag.mp3" },
+  { id: "cowboy_quick", label: "Cowboy Quick", key: "", file: "hey_cowboy_quick.mp3" },
+  { id: "medieval_towncrier", label: "Medieval Town Crier", key: "", file: "hey_medieval_towncrier.mp3" },
 ];
-import { extraClips } from './extra-clips.js';
-clips.push(...extraClips);
-
 const defaultRegions = new Map([
   ["clean_bright_f",[0.32,1.43]],["clean_bright_m",[0.34,1.46]],
   ["retro_8bit",[0.11,1.20]],["robotic",[0.33,1.43]],
@@ -55,7 +64,7 @@ const cardById = new Map();
 function createAudioPlayer() {
   let audioContext;
   const audioBuffers = new Map();
-  let source = null, currentId = null, startTime = 0, currentDur = 0, currentRegionNorm = null, started = false;
+  let source = null, currentId = null, startTime = 0, currentDur = 0, currentRegionNorm = null;
 
   const initContext = () => {
     if (!audioContext) {
@@ -83,22 +92,15 @@ function createAudioPlayer() {
     const gainNode = audioContext.createGain(); gainNode.gain.setValueAtTime(gain, audioContext.currentTime);
     gainNode.connect(audioContext.destination);
     try { const buf = await ensureBuffer(id); source = audioContext.createBufferSource();
-      const meta = clips.find(c => c.id === id); source.playbackRate.value = meta?.fx?.rate || 1;
       currentId = id; const offset = regionSec ? Math.max(0, regionSec.start) : 0;
       const dur = regionSec ? Math.max(0.001, regionSec.end - regionSec.start) : undefined;
       startTime = audioContext.currentTime; currentDur = dur ?? buf.duration; currentRegionNorm = regionSec ? {start: offset/buf.duration, end: regionSec.end/buf.duration} : null;
-      source.buffer = buf;
-      let node = source;
-      if (meta?.fx?.filter) { const f = audioContext.createBiquadFilter(); Object.assign(f, meta.fx.filter); node.connect(f); node = f; }
-      node.connect(gainNode); source.onended = () => { started = false; currentId=null; currentRegionNorm=null; onEnded(); }; source.start(0, offset, dur); started = true;
+      source.buffer = buf; source.connect(gainNode); source.onended = () => { currentId=null; currentRegionNorm=null; onEnded(); }; source.start(0, offset, dur);
     } catch(e){ console.error(`Error decoding ${id}`, e); }
   };
 
   const stop = () => {
-    if (source) { 
-      if (started) { try { source.stop(); } catch(_) {} }
-      source.onended = null; source = null; started = false;
-    }
+    if (source) { source.onended = null; source.stop(); source = null; }
     currentId = null;
   };
 
