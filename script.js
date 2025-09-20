@@ -191,3 +191,9 @@ window.addEventListener("keydown", (e) => {
 
 render();
 audioPlayer.load(clips);
+/* overlay: show then dismiss on click or after 5s */
+const ov=document.getElementById('voices-overlay');
+if(ov){ requestAnimationFrame(()=>ov.classList.add('show'));
+  const hide=()=>{ ov.classList.remove('show'); ov.removeEventListener('click',hide); };
+  ov.addEventListener('click',hide); setTimeout(hide,5000);
+}
