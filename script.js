@@ -55,7 +55,7 @@ const cardById = new Map();
 function createAudioPlayer() {
   let audioContext;
   const audioBuffers = new Map();
-  let source = null, currentId = null, startTime = 0, currentDur = 0, currentRegionNorm = null;
+  let source = null, currentId = null, startTime = 0, currentDur = 0, currentRegionNorm = null, started = false;
 
   const initContext = () => {
     if (!audioContext) {
@@ -90,12 +90,15 @@ function createAudioPlayer() {
       source.buffer = buf;
       let node = source;
       if (meta?.fx?.filter) { const f = audioContext.createBiquadFilter(); Object.assign(f, meta.fx.filter); node.connect(f); node = f; }
-      node.connect(gainNode); source.onended = () => { currentId=null; currentRegionNorm=null; onEnded(); }; source.start(0, offset, dur);
+      node.connect(gainNode); source.onended = () => { started = false; currentId=null; currentRegionNorm=null; onEnded(); }; source.start(0, offset, dur); started = true;
     } catch(e){ console.error(`Error decoding ${id}`, e); }
   };
 
   const stop = () => {
-    if (source) { source.onended = null; source.stop(); source = null; }
+    if (source) { 
+      if (started) { try { source.stop(); } catch(_) {} }
+      source.onended = null; source = null; started = false;
+    }
     currentId = null;
   };
 
