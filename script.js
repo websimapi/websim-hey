@@ -36,15 +36,16 @@ const clips = [
   { id: "glitch_fx", label: "Glitch FX", key: "'", file: "hey_glitch_fx.mp3" },
 ];
 
-const selections = new Map();
-
 const grid = document.getElementById("grid");
 const audioPlayer = createAudioPlayer();
+
+const selections = new WeakMap();
+const cardById = new Map();
 
 function createAudioPlayer() {
   let audioContext;
   const audioBuffers = new Map();
-  let source = null, currentId = null, startTime = 0, currentDur = 0, currentOffset = 0;
+  let source = null, currentId = null, startTime = 0, currentDur = 0, currentRegionNorm = null;
 
   const initContext = () => {
     if (!audioContext) {
@@ -67,18 +68,15 @@ function createAudioPlayer() {
     buf = await audioContext.decodeAudioData(ab); audioBuffers.set(id, buf); return buf;
   };
 
-  const play = async (id, { gain = 1.0, onEnded = () => {}, start = 0, end = null } = {}) => {
+  const play = async (id, { gain = 1.0, onEnded = () => {}, regionSec = null } = {}) => {
     if (!audioContext) initContext(); if (!audioContext) return; stop();
     const gainNode = audioContext.createGain(); gainNode.gain.setValueAtTime(gain, audioContext.currentTime);
     gainNode.connect(audioContext.destination);
     try { const buf = await ensureBuffer(id); source = audioContext.createBufferSource();
-      const hasSel = end != null && end > start;
-      const maxEnd = hasSel ? Math.min(end, buf.duration) : buf.duration;
-      const offset = Math.max(0, Math.min(start || 0, buf.duration - 0.0001));
-      const dur = hasSel ? Math.max(0.02, maxEnd - offset) : (buf.duration - offset);
-      if (dur <= 0) return;
-      currentId = id; startTime = audioContext.currentTime; currentDur = dur; currentOffset = offset;
-      source.buffer = buf; source.connect(gainNode); source.onended = () => { currentId=null; onEnded(); }; source.start(0, offset, dur);
+      currentId = id; const offset = regionSec ? Math.max(0, regionSec.start) : 0;
+      const dur = regionSec ? Math.max(0.001, regionSec.end - regionSec.start) : undefined;
+      startTime = audioContext.currentTime; currentDur = dur ?? buf.duration; currentRegionNorm = regionSec ? {start: offset/buf.duration, end: regionSec.end/buf.duration} : null;
+      source.buffer = buf; source.connect(gainNode); source.onended = () => { currentId=null; currentRegionNorm=null; onEnded(); }; source.start(0, offset, dur);
     } catch(e){ console.error(`Error decoding ${id}`, e); }
   };
 
@@ -87,7 +85,8 @@ function createAudioPlayer() {
     currentId = null;
   };
 
-  return { load, play, stop, ensureBuffer, getProgress:(id)=> (id===currentId && currentDur>0)? Math.min(1,(audioContext.currentTime-startTime)/currentDur) : null };
+  return { load, play, stop, ensureBuffer, getProgress:(id)=> (id===currentId && currentDur>0)? Math.min(1,(audioContext.currentTime-startTime)/currentDur) : null,
+           getProgressX:(id)=>{ const p=(id===currentId && currentDur>0)? Math.min(1,(audioContext.currentTime-startTime)/currentDur) : null; if(p==null) return null; if(currentRegionNorm) return currentRegionNorm.start + p*(currentRegionNorm.end-currentRegionNorm.start); return p; } };
 }
 
 function makeCard(c) {
@@ -108,33 +107,31 @@ function makeCard(c) {
       </div>
     </div>
   `;
-  el.querySelector('[data-action="play"]').addEventListener("click", () => playWithSelection(c.id));
-  el.addEventListener("mouseenter", () => playWithSelection(c.id, { gain: 0.6 }));
+  el.querySelector('[data-action="play"]').addEventListener("click", () => {
+    const r = getSelectionSeconds(el, c);
+    audioPlayer.play(c.id, { regionSec: r || null });
+  });
+  el.addEventListener("mouseenter", () => {
+    const r = getSelectionSeconds(el, c);
+    audioPlayer.play(c.id, { gain: 0.6, regionSec: r || null });
+  });
   el.addEventListener("mouseleave", () => audioPlayer.stop());
   attachWaveInteractions(el, c);
+  cardById.set(c.id, el);
   return el;
 }
 
-function playWithSelection(id, opts = {}) {
-  const sel = selections.get(id);
-  return sel ? audioPlayer.play(id, { ...opts, start: sel.start, end: sel.end }) : audioPlayer.play(id, opts);
-}
+function getSelectionSeconds(el, c){ const s = selections.get(el); return s ? { start: s.a, end: s.b } : null; }
 
 function attachWaveInteractions(el, c){
   const cv = el.querySelector('canvas'); const times = el.querySelector('.times'); const btn = el.querySelector('[data-action="dlsel"]');
   let sel=null, dragging=false, dur=0, bufRef=null, lastP=null, raf=0;
   const toTime = x => Math.max(0, Math.min(1, x / cv.clientWidth));
-  audioPlayer.ensureBuffer(c.id).then(buf=>{ bufRef=buf; dur=buf.duration; 
-    if(selections.has(c.id)){ const s=selections.get(c.id); sel={start:s.start/dur,end:s.end/dur}; btn.disabled=false; times.textContent=`${s.start.toFixed(2)}s – ${s.end.toFixed(2)}s`; }
-    drawWaveform(cv, bufRef, sel, audioPlayer.getProgress(c.id)); tick(); });
-  const tick = ()=>{ const p = audioPlayer.getProgress(c.id); if(p!==lastP && bufRef){ drawWaveform(cv, bufRef, sel, p); lastP=p; } raf = requestAnimationFrame(tick); };
+  audioPlayer.ensureBuffer(c.id).then(buf=>{ bufRef=buf; dur=buf.duration; drawWaveform(cv, bufRef, sel, audioPlayer.getProgress(c.id)); tick(); });
+  const tick = ()=>{ const p = audioPlayer.getProgressX(c.id); if(p!==lastP && bufRef){ drawWaveform(cv, bufRef, sel, p); lastP=p; } raf = requestAnimationFrame(tick); };
   cv.addEventListener('pointerdown', e=>{ dragging=true; sel={start:toTime(e.offsetX), end:toTime(e.offsetX)}; btn.disabled=true; });
   cv.addEventListener('pointermove', e=>{ if(!dragging) return; sel.end=toTime(e.offsetX); if(bufRef){ drawWaveform(cv, bufRef, sel, audioPlayer.getProgress(c.id)); const a=Math.min(sel.start,sel.end)*dur, b=Math.max(sel.start,sel.end)*dur; times.textContent=`${a.toFixed(2)}s – ${b.toFixed(2)}s`; }});
-  window.addEventListener('pointerup', ()=>{ if(!dragging) return; dragging=false; 
-    if(Math.abs(sel.end-sel.start)<0.005){ sel=null; btn.disabled=true; times.textContent='Select a region'; selections.delete(c.id);
-      if(bufRef) drawWaveform(cv,bufRef,sel,audioPlayer.getProgress(c.id)); }
-    else { btn.disabled=false; const a=Math.min(sel.start,sel.end)*dur, b=Math.max(sel.start,sel.end)*dur; selections.set(c.id,{start:a,end:b}); }
-  });
+  window.addEventListener('pointerup', ()=>{ if(!dragging) return; dragging=false; if(Math.abs(sel.end-sel.start)<0.005){ sel=null; selections.delete(el); btn.disabled=true; times.textContent='Select a region'; if(bufRef) drawWaveform(cv,bufRef,sel,audioPlayer.getProgressX(c.id)); } else { btn.disabled=false; const a=Math.min(sel.start,sel.end)*dur, b=Math.max(sel.start,sel.end)*dur; selections.set(el,{a,b}); }});
   btn.addEventListener('click', async ()=>{ const buf=await audioPlayer.ensureBuffer(c.id); const a=Math.min(sel.start,sel.end)*dur, b=Math.max(sel.start,sel.end)*dur; const blob=bufferToWav(buf,a,b); const url=URL.createObjectURL(blob); const ael=document.createElement('a'); ael.href=url; ael.download=`${c.id}_${a.toFixed(2)}-${b.toFixed(2)}.wav`; document.body.appendChild(ael); ael.click(); ael.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000); });
 }
 
@@ -154,7 +151,8 @@ document.getElementById("btn-random").addEventListener("click", () => {
 
   function playNext() {
     if (i < shuffled.length) {
-      playWithSelection(shuffled[i].id, { onEnded: playNext });
+      const c = shuffled[i]; const el = cardById.get(c.id); const r = el ? getSelectionSeconds(el, c) : null;
+      audioPlayer.play(c.id, { onEnded: playNext, regionSec: r || null });
       i++;
     }
   }
@@ -166,7 +164,7 @@ function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.
 
 window.addEventListener("keydown", (e) => {
   const hit = clips.find(c => c.key === e.key);
-  if (hit) playWithSelection(hit.id);
+  if (hit) { const el = cardById.get(hit.id); const r = el ? getSelectionSeconds(el, hit) : null; audioPlayer.play(hit.id, { regionSec: r || null }); }
 });
 
 render();
