@@ -1,6 +1,3 @@
-
-```javascript
-// ...existing code...
 const clips = [
   { id: "clean_bright_f", label: "Clean Bright — F", key: "1", file: "hey_clean_bright_f.mp3" },
   { id: "clean_bright_m", label: "Clean Bright — M", key: "2", file: "hey_clean_bright_m.mp3" },
@@ -22,9 +19,64 @@ const clips = [
 ];
 
 const grid = document.getElementById("grid");
-const audioMap = new Map();
+const audioPlayer = createAudioPlayer();
+audioPlayer.load(clips);
 
-function makeCard(c, idx) {
+function createAudioPlayer() {
+  let audioContext;
+  const audioBuffers = new Map();
+  let source = null;
+
+  const initContext = () => {
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+  };
+  
+  document.addEventListener('click', initContext, { once: true });
+  document.addEventListener('keydown', initContext, { once: true });
+
+  const load = (clipsToLoad) => {
+    clipsToLoad.forEach(clip => {
+      fetch(clip.file)
+        .then(response => response.arrayBuffer())
+        .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+        .then(audioBuffer => {
+          audioBuffers.set(clip.id, audioBuffer);
+        })
+        .catch(e => console.error(`Error loading audio ${clip.id}:`, e));
+    });
+  };
+
+  const play = (id, { gain = 1.0, onEnded = () => {} } = {}) => {
+    if (!audioContext) initContext();
+    if (!audioContext || !audioBuffers.has(id)) return;
+
+    stop();
+
+    const gainNode = audioContext.createGain();
+    gainNode.gain.setValueAtTime(gain, audioContext.currentTime);
+    gainNode.connect(audioContext.destination);
+
+    source = audioContext.createBufferSource();
+    source.buffer = audioBuffers.get(id);
+    source.connect(gainNode);
+    source.onended = onEnded;
+    source.start(0);
+  };
+
+  const stop = () => {
+    if (source) {
+      source.onended = null;
+      source.stop();
+      source = null;
+    }
+  };
+
+  return { load, play, stop };
+}
+
+function makeCard(c) {
   const el = document.createElement("article");
   el.className = "card";
   el.innerHTML = `
@@ -40,64 +92,37 @@ function makeCard(c, idx) {
       </div>
     </div>
   `;
-  el.querySelector('[data-action="play"]').addEventListener("click", () => play(c.id));
-  el.addEventListener("mouseenter", () => preview(c.id));
-  el.addEventListener("mouseleave", stop);
+  el.querySelector('[data-action="play"]').addEventListener("click", () => audioPlayer.play(c.id));
+  el.addEventListener("mouseenter", () => audioPlayer.play(c.id, { gain: 0.6 }));
+  el.addEventListener("mouseleave", () => audioPlayer.stop());
   return el;
 }
 
-function load() {
+function render() {
   clips.forEach(c => {
-    const a = new Audio(c.file);
-    a.preload = "auto";
-    audioMap.set(c.id, a);
     grid.appendChild(makeCard(c));
   });
 }
-function stop() {
-  audioMap.forEach(a => { a.pause(); a.currentTime = 0; });
-}
-function preview(id) {
-  stop();
-  const a = audioMap.get(id);
-  if (!a) return;
-  a.volume = 0.6;
-  a.currentTime = 0;
-  a.play().catch(()=>{});
-}
-function play(id) {
-  stop();
-  const a = audioMap.get(id);
-  if (!a) return;
-  a.volume = 1;
-  a.currentTime = 0;
-  a.play().catch(()=>{});
-}
 
-document.getElementById("btn-random").addEventListener("click", async () => {
-  stop();
-  for (const c of shuffle([...clips])) {
-    await playAndWait(c.id);
+document.getElementById("btn-random").addEventListener("click", () => {
+  const shuffled = shuffle([...clips]);
+  let i = 0;
+  
+  function playNext() {
+    if (i < shuffled.length) {
+      audioPlayer.play(shuffled[i].id, { onEnded: playNext });
+      i++;
+    }
   }
+  playNext();
 });
-document.getElementById("btn-stop").addEventListener("click", stop);
+document.getElementById("btn-stop").addEventListener("click", () => audioPlayer.stop());
 
-function playAndWait(id) {
-  return new Promise(res => {
-    const a = audioMap.get(id);
-    if (!a) return res();
-    a.currentTime = 0;
-    a.play().catch(()=>{}); 
-    a.onended = () => res();
-  });
-}
 function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
 
 window.addEventListener("keydown", (e) => {
-  const key = e.key;
-  const hit = clips.find(c => c.key === key);
-  if (hit) play(hit.id);
+  const hit = clips.find(c => c.key === e.key);
+  if (hit) audioPlayer.play(hit.id);
 });
 
-load();
-// ...existing code...
+render();
