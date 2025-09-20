@@ -72,11 +72,13 @@ function createAudioPlayer() {
     const gainNode = audioContext.createGain(); gainNode.gain.setValueAtTime(gain, audioContext.currentTime);
     gainNode.connect(audioContext.destination);
     try { const buf = await ensureBuffer(id); source = audioContext.createBufferSource();
-      const maxEnd = end==null ? buf.duration : Math.min(end, buf.duration);
-      const offset = Math.max(0, Math.min(start, buf.duration - 0.0001));
-      const dur = Math.max(0, maxEnd - offset);
+      const hasSel = end != null && end > start;
+      const maxEnd = hasSel ? Math.min(end, buf.duration) : buf.duration;
+      const offset = Math.max(0, Math.min(start || 0, buf.duration - 0.0001));
+      const dur = hasSel ? Math.max(0.02, maxEnd - offset) : (buf.duration - offset);
+      if (dur <= 0) return;
       currentId = id; startTime = audioContext.currentTime; currentDur = dur; currentOffset = offset;
-      source.buffer = buf; source.connect(gainNode); source.onended = () => { currentId=null; onEnded(); }; source.start(0, offset, dur||undefined);
+      source.buffer = buf; source.connect(gainNode); source.onended = () => { currentId=null; onEnded(); }; source.start(0, offset, dur);
     } catch(e){ console.error(`Error decoding ${id}`, e); }
   };
 
