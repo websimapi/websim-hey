@@ -95,10 +95,9 @@ function makeCard(c) {
       <span class="kbd">${c.key}</span>
     </div>
     <div class="row">
-      <div class="meta">${c.file}</div>
       <div class="controls">
-        <button class="iconbtn" data-action="play" aria-label="Play ${c.label}">▶︎</button>
-        <a class="iconbtn" href="${c.file}" download aria-label="Download ${c.label}">⬇︎</a>
+        <button class="iconbtn" data-action="play" aria-label="Play clip">▶︎</button>
+        <a class="iconbtn" href="${c.file}" download aria-label="Download clip">⬇︎</a>
       </div>
     </div>
   `;
