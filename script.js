@@ -35,6 +35,12 @@ const clips = [
   { id: "child_joy", label: "Child Joy", key: ";", file: "hey_child_joy.mp3" },
   { id: "glitch_fx", label: "Glitch FX", key: "'", file: "hey_glitch_fx.mp3" },
 ];
+const defaultRegions = new Map([
+  ["clean_bright_f",[0.32,1.43]],["clean_bright_m",[0.34,1.46]],
+  ["retro_8bit",[0.11,1.20]],["robotic",[0.33,1.43]],
+  ["cinematic",[0.04,1.80]],["country_drawl",[2.04,3.95]],
+  ["tts_flat",[2.25,3.90]],["binaural_asmr",[2.40,3.75]],
+]);
 
 const grid = document.getElementById("grid");
 const audioPlayer = createAudioPlayer();
@@ -116,18 +122,21 @@ function makeCard(c) {
     audioPlayer.play(c.id, { gain: 0.6, regionSec: r || null });
   });
   el.addEventListener("mouseleave", () => audioPlayer.stop());
-  attachWaveInteractions(el, c);
+  attachWaveInteractions(el, c, defaultRegions.get(c.id) || null);
   cardById.set(c.id, el);
   return el;
 }
 
 function getSelectionSeconds(el, c){ const s = selections.get(el); return s ? { start: s.a, end: s.b } : null; }
 
-function attachWaveInteractions(el, c){
+function attachWaveInteractions(el, c, defSec){
   const cv = el.querySelector('canvas'); const times = el.querySelector('.times'); const btn = el.querySelector('[data-action="dlsel"]');
   let sel=null, dragging=false, dur=0, bufRef=null, lastP=null, raf=0;
   const toTime = x => Math.max(0, Math.min(1, x / cv.clientWidth));
-  audioPlayer.ensureBuffer(c.id).then(buf=>{ bufRef=buf; dur=buf.duration; drawWaveform(cv, bufRef, sel, audioPlayer.getProgress(c.id)); tick(); });
+  audioPlayer.ensureBuffer(c.id).then(buf=>{ bufRef=buf; dur=buf.duration;
+    if(defSec){ sel={start:defSec[0]/dur, end:defSec[1]/dur}; selections.set(el,{a:defSec[0],b:defSec[1]}); btn.disabled=false; times.textContent=`${defSec[0].toFixed(2)}s – ${defSec[1].toFixed(2)}s`; }
+    drawWaveform(cv, bufRef, sel, audioPlayer.getProgress(c.id)); tick();
+  });
   const tick = ()=>{ const p = audioPlayer.getProgressX(c.id); if(p!==lastP && bufRef){ drawWaveform(cv, bufRef, sel, p); lastP=p; } raf = requestAnimationFrame(tick); };
   cv.addEventListener('pointerdown', e=>{ dragging=true; sel={start:toTime(e.offsetX), end:toTime(e.offsetX)}; btn.disabled=true; });
   cv.addEventListener('pointermove', e=>{ if(!dragging) return; sel.end=toTime(e.offsetX); if(bufRef){ drawWaveform(cv, bufRef, sel, audioPlayer.getProgress(c.id)); const a=Math.min(sel.start,sel.end)*dur, b=Math.max(sel.start,sel.end)*dur; times.textContent=`${a.toFixed(2)}s – ${b.toFixed(2)}s`; }});
