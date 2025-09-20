@@ -1,3 +1,5 @@
+
+```javascript
 // ...existing code...
 const clips = [
   { id: "clean_bright_f", label: "Clean Bright — F", key: "1", file: "hey_clean_bright_f.mp3" },
@@ -12,6 +14,11 @@ const clips = [
   { id: "long_tag", label: "Long Tag", key: "0", file: "hey_long_tag.mp3" },
   { id: "chorus", label: "Stacked Chorus", key: "-", file: "hey_chorus.mp3" },
   { id: "dark_trailer", label: "Dark Trailer", key: "=", file: "hey_dark_trailer.mp3" },
+  { id: "navi", label: "Navi Fairy", key: "q", file: "hey_navi.mp3" },
+  { id: "autotune_pop", label: "Auto‑Tune Pop", key: "w", file: "hey_autotune_pop.mp3" },
+  { id: "vaporwave", label: "Vaporwave Lo‑Fi", key: "e", file: "hey_vaporwave.mp3" },
+  { id: "brit_announce", label: "British Announcer", key: "r", file: "hey_brit_announce.mp3" },
+  { id: "monster_low", label: "Monster Low", key: "t", file: "hey_monster_low.mp3" },
 ];
 
 const grid = document.getElementById("grid");
@@ -94,4 +101,3 @@ window.addEventListener("keydown", (e) => {
 
 load();
 // ...existing code...
-
