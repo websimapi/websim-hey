@@ -24,6 +24,16 @@ const clips = [
   { id: "crowd_chant", label: "Crowd Chant", key: "x", file: "hey_crowd_chant.mp3" },
   { id: "binaural_asmr", label: "Binaural ASMR", key: "c", file: "hey_binaural_asmr.mp3" },
   { id: "space_astronaut", label: "Space Astronaut PA", key: "v", file: "hey_space_astronaut.mp3" },
+  { id: "opera_vibrato", label: "Opera Vibrato", key: "t", file: "hey_opera_vibrato.mp3" },
+  { id: "brit_announce", label: "British Announcer", key: "y", file: "hey_brit_announce.mp3" },
+  { id: "sports_announce", label: "Sports Announcer", key: "u", file: "hey_sports_announce.mp3" },
+  { id: "choir_epic", label: "Epic Choir", key: "i", file: "hey_choir_epic.mp3" },
+  { id: "gameshow_hype", label: "Game Show Hype", key: "o", file: "hey_gameshow_hype.mp3" },
+  { id: "soft_piano_bed", label: "Soft Piano Bed", key: "p", file: "hey_soft_piano_bed.mp3" },
+  { id: "lofi_tape", label: "Lo‑Fi Tape", key: "[", file: "hey_lofi_tape.mp3" },
+  { id: "monster_low", label: "Monster Low", key: "]", file: "hey_monster_low.mp3" },
+  { id: "child_joy", label: "Child Joy", key: ";", file: "hey_child_joy.mp3" },
+  { id: "glitch_fx", label: "Glitch FX", key: "'", file: "hey_glitch_fx.mp3" },
 ];
 
 const grid = document.getElementById("grid");
