@@ -14,16 +14,16 @@ const clips = [
   { id: "navi", label: "Navi Fairy", key: "q", file: "hey_navi.mp3" },
   { id: "autotune_pop", label: "Auto‑Tune Pop", key: "w", file: "hey_autotune_pop.mp3" },
   { id: "vaporwave", label: "Vaporwave Lo‑Fi", key: "e", file: "hey_vaporwave.mp3" },
-  { id: "brit_announce", label: "British Announcer", key: "r", file: "hey_brit_announce.mp3" },
-  { id: "monster_low", label: "Monster Low", key: "t", file: "hey_monster_low.mp3" },
-  { id: "glitch_fx", label: "Glitch FX", key: "y", file: "hey_glitch_fx.mp3" },
-  { id: "child_joy", label: "Childlike Joy", key: "u", file: "hey_child_joy.mp3" },
-  { id: "sports_announce", label: "Sports Announcer", key: "i", file: "hey_sports_announce.mp3" },
-  { id: "soft_piano_bed", label: "Soft Piano Bed", key: "o", file: "hey_soft_piano_bed.mp3" },
-  { id: "choir_epic", label: "Epic Choir", key: "p", file: "hey_choir_epic.mp3" },
+  { id: "tts_flat", label: "TTS Flat Read", key: "j", file: "hey_tts_flat.mp3" },
+  { id: "metal_scream", label: "Metal Scream", key: "k", file: "hey_metal_scream.mp3" },
+  { id: "country_drawl", label: "Country Drawl", key: "l", file: "hey_country_drawl.mp3" },
   { id: "synthwave_lead", label: "Synthwave Lead", key: "a", file: "hey_synthwave_lead.mp3" },
   { id: "airport_pa", label: "Airport PA", key: "s", file: "hey_airport_pa.mp3" },
   { id: "cartoon_bounce", label: "Cartoon Bounce", key: "d", file: "hey_cartoon_bounce.mp3" },
+  { id: "barbershop_quartet", label: "Barbershop Quartet", key: "z", file: "hey_barbershop_quartet.mp3" },
+  { id: "crowd_chant", label: "Crowd Chant", key: "x", file: "hey_crowd_chant.mp3" },
+  { id: "binaural_asmr", label: "Binaural ASMR", key: "c", file: "hey_binaural_asmr.mp3" },
+  { id: "space_astronaut", label: "Space Astronaut PA", key: "v", file: "hey_space_astronaut.mp3" },
 ];
 
 const grid = document.getElementById("grid");
