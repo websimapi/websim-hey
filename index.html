@@ -14,6 +14,15 @@
       <button id="btn-random" class="btn">Shuffle Play ▶︎</button>
       <button id="btn-stop" class="btn ghost">Stop ⏹</button>
     </div>
+    <div id="composer" class="composer">
+      <input id="video-file" type="file" accept="video/*" />
+      <input id="intro-prompt" type="text" placeholder="Describe a striking intro scene..." />
+      <input id="intro-seconds" type="number" min="1" max="10" step="1" value="2" title="Intro duration (s)" />
+      <button id="btn-gen-intro" class="btn">Generate Intro Image</button>
+      <button id="btn-compose" class="btn ghost" disabled>Compose + Download</button>
+      <div id="intro-preview" class="intro-preview" aria-live="polite"></div>
+      <p class="tiny">Tip: Click any audio card Play to set it as the intro audio.</p>
+    </div>
   </header>
 
   <main class="wrap">

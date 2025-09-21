@@ -98,6 +98,9 @@ h1 { font-size: 2rem; line-height: 1.1; margin-bottom: 0.5rem; }
 }
 .controls { display: flex; gap: 0.5rem; }
 
+.composer{display:grid;gap:.5rem;grid-template-columns:1fr 1fr auto auto auto}
+.intro-preview img{max-width:100%;border:1px solid var(--line);border-radius:6px}
+
 /* Footer */
 footer { text-align: center; padding-top: 2rem; border-top: 1px solid var(--line); margin-top: 2rem; }
 
