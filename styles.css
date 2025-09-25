@@ -98,15 +98,12 @@ h1 { font-size: 2rem; line-height: 1.1; margin-bottom: 0.5rem; }
 }
 .controls { display: flex; gap: 0.5rem; }
 
-.composer{display:grid;gap:.5rem;grid-template-columns:1fr 1fr auto auto auto}
-.intro-preview img{max-width:100%;border:1px solid var(--line);border-radius:6px}
-
 /* Footer */
 footer { text-align: center; padding-top: 2rem; border-top: 1px solid var(--line); margin-top: 2rem; }
 
 /* Wave */
 .wave { height: 64px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-.wave canvas { width: 100%; height: 100%; display: block; }
+.wave canvas { width: 100%; height: 100%; display: block; touch-action: none; }
 .selmeta { display:flex; justify-content: space-between; align-items:center; font-size:.85rem; color:var(--muted); }
 
 #voices-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .35s ease;}

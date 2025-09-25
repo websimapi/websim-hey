@@ -128,7 +128,6 @@ function makeCard(c) {
   `;
   el.querySelector('[data-action="play"]').addEventListener("click", () => {
     const r = getSelectionSeconds(el, c);
-    selectedIntroAudioId = c.id; // mark this as intro audio choice
     audioPlayer.play(c.id, { regionSec: r || null });
   });
   el.addEventListener("mouseenter", () => {
@@ -147,6 +146,7 @@ function attachWaveInteractions(el, c, defSec){
   const cv = el.querySelector('canvas'); const times = el.querySelector('.times'); const btn = el.querySelector('[data-action="dlsel"]');
   let sel=null, dragging=false, dur=0, bufRef=null, lastP=null, raf=0;
   const toTime = x => Math.max(0, Math.min(1, x / cv.clientWidth));
+  const getX = (evt) => (evt.touches && evt.touches[0]) ? (evt.touches[0].clientX - cv.getBoundingClientRect().left) : evt.offsetX;
   audioPlayer.ensureBuffer(c.id).then(buf=>{ bufRef=buf; dur=buf.duration;
     if(defSec){ sel={start:defSec[0]/dur, end:defSec[1]/dur}; selections.set(el,{a:defSec[0],b:defSec[1]}); btn.disabled=false; times.textContent=`${defSec[0].toFixed(2)}s – ${defSec[1].toFixed(2)}s`; }
     drawWaveform(cv, bufRef, sel, audioPlayer.getProgress(c.id)); tick();
@@ -155,6 +155,9 @@ function attachWaveInteractions(el, c, defSec){
   cv.addEventListener('pointerdown', e=>{ dragging=true; sel={start:toTime(e.offsetX), end:toTime(e.offsetX)}; btn.disabled=true; });
   cv.addEventListener('pointermove', e=>{ if(!dragging) return; sel.end=toTime(e.offsetX); if(bufRef){ drawWaveform(cv, bufRef, sel, audioPlayer.getProgress(c.id)); const a=Math.min(sel.start,sel.end)*dur, b=Math.max(sel.start,sel.end)*dur; times.textContent=`${a.toFixed(2)}s – ${b.toFixed(2)}s`; }});
   window.addEventListener('pointerup', ()=>{ if(!dragging) return; dragging=false; if(Math.abs(sel.end-sel.start)<0.005){ sel=null; selections.delete(el); btn.disabled=true; times.textContent='Select a region'; if(bufRef) drawWaveform(cv,bufRef,sel,audioPlayer.getProgressX(c.id)); } else { btn.disabled=false; const a=Math.min(sel.start,sel.end)*dur, b=Math.max(sel.start,sel.end)*dur; selections.set(el,{a,b}); }});
+  cv.addEventListener('touchstart', e=>{ e.preventDefault(); dragging=true; const x=getX(e); sel={start:toTime(x), end:toTime(x)}; btn.disabled=true; }, {passive:false});
+  cv.addEventListener('touchmove', e=>{ if(!dragging) return; e.preventDefault(); const x=getX(e); sel.end=toTime(x); if(bufRef){ drawWaveform(cv, bufRef, sel, audioPlayer.getProgress(c.id)); const a=Math.min(sel.start,sel.end)*dur, b=Math.max(sel.start,sel.end)*dur; times.textContent=`${a.toFixed(2)}s – ${b.toFixed(2)}s`; }}, {passive:false});
+  window.addEventListener('touchend', ()=>{ if(!dragging) return; dragging=false; if(Math.abs(sel.end-sel.start)<0.005){ sel=null; selections.delete(el); btn.disabled=true; times.textContent='Select a region'; if(bufRef) drawWaveform(cv,bufRef,sel,audioPlayer.getProgressX(c.id)); } else { btn.disabled=false; const a=Math.min(sel.start,sel.end)*dur, b=Math.max(sel.start,sel.end)*dur; selections.set(el,{a,b}); }});
   btn.addEventListener('click', async ()=>{ const buf=await audioPlayer.ensureBuffer(c.id); const a=Math.min(sel.start,sel.end)*dur, b=Math.max(sel.start,sel.end)*dur; const blob=bufferToWav(buf,a,b); const url=URL.createObjectURL(blob); const ael=document.createElement('a'); ael.href=url; ael.download=`${c.id}_${a.toFixed(2)}-${b.toFixed(2)}.wav`; document.body.appendChild(ael); ael.click(); ael.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000); });
 }
 
@@ -197,85 +200,4 @@ const ov=document.getElementById('voices-overlay');
 if(ov){ requestAnimationFrame(()=>ov.classList.add('show'));
   const hide=()=>{ ov.classList.remove('show'); ov.removeEventListener('click',hide); };
   ov.addEventListener('click',hide); setTimeout(hide,5000);
-}
-
-let selectedIntroAudioId = null;
-const fileInput = document.getElementById('video-file');
-const promptInput = document.getElementById('intro-prompt');
-const secsInput = document.getElementById('intro-seconds');
-const genBtn = document.getElementById('btn-gen-intro');
-const composeBtn = document.getElementById('btn-compose');
-const preview = document.getElementById('intro-preview');
-let uploadedFile = null, introImageUrl = null;
-
-fileInput.addEventListener('change',e=>{uploadedFile=e.target.files?.[0]||null; updateComposeState();});
-genBtn.addEventListener('click', async ()=>{ if(!promptInput.value.trim()) return;
-  preview.textContent='Generating image... (~10s)'; genBtn.disabled=true;
-  try{ const res=await websim.imageGen({ prompt: promptInput.value.trim(), aspect_ratio:"16:9" });
-    introImageUrl=res.url; preview.innerHTML=`<img src="${introImageUrl}" alt="Generated intro image">`;
-  }catch(err){ console.error(err); preview.textContent='Generation failed.'; } finally{ genBtn.disabled=false; updateComposeState(); }
-});
-function updateComposeState(){ composeBtn.disabled = !(uploadedFile && introImageUrl); }
-
-composeBtn.addEventListener('click', async ()=>{ if(!(uploadedFile&&introImageUrl)) return;
-  composeBtn.disabled=true; composeBtn.textContent='Composing...';
-  try{
-    const url = await composeWithIntro({file:uploadedFile, image:introImageUrl, seconds:Math.max(1,parseInt(secsInput.value)||2), audioId:selectedIntroAudioId});
-    const a=document.createElement('a'); a.href=url; a.download='websim_intro_merged.webm'; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url), 30000);
-  }catch(e){ console.error(e); alert('Composition failed.'); }
-  composeBtn.textContent='Compose + Download'; composeBtn.disabled=false;
-});
-
-async function composeWithIntro({file, image, seconds=2, audioId=null}){
-  const vid = document.createElement('video'); vid.src = URL.createObjectURL(file); vid.crossOrigin='anonymous'; vid.muted=true; await vid.play().catch(()=>{}); vid.pause();
-  await new Promise(r=> vid.onloadedmetadata = r);
-  const W = vid.videoWidth || 1280, H = vid.videoHeight || 720;
-
-  const canvas = document.createElement('canvas'); canvas.width=W; canvas.height=H;
-  const ctx = canvas.getContext('2d');
-  const stream = canvas.captureStream(30);
-  const ac = new (window.AudioContext||window.webkitAudioContext)();
-  const dest = ac.createMediaStreamDestination();
-
-  const vidEl = document.createElement('video'); vidEl.src = URL.createObjectURL(file); vidEl.crossOrigin='anonymous'; vidEl.muted=true;
-  const vidNode = ac.createMediaElementSource(vidEl); vidNode.connect(dest);
-
-  let introBuf=null, introSrc=null, introGain = ac.createGain(); introGain.connect(dest);
-  if(audioId){ const clip = clips.find(c=>c.id===audioId); if(clip){ const ab=await (await fetch(clip.file)).arrayBuffer(); introBuf=await ac.decodeAudioData(ab); } }
-  const mixed = new MediaStream([ ...stream.getVideoTracks(), ...dest.stream.getAudioTracks() ]);
-  const rec = new MediaRecorder(mixed, { mimeType: 'video/webm;codecs=vp9,opus' });
-  const chunks=[]; rec.ondataavailable=(e)=>{ if(e.data.size) chunks.push(e.data); };
-  const done = new Promise(res=> rec.onstop=()=>res());
-  rec.start(100);
-
-  const img = new Image(); img.crossOrigin='anonymous'; img.src=image; await img.decode();
-  const logo = new Image(); logo.src='websim_logo.png'; await new Promise(r=>{ logo.onload=r; logo.onerror=r; });
-
-  const tStart = performance.now(); const introDur = seconds*1000;
-  let switching=false;
-  const drawLoop = async (now)=>{
-    const t = now - tStart;
-    if(t < introDur){
-      ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
-      // cover image
-      const ratio=Math.max(W/img.width, H/img.height);
-      const iw=img.width*ratio, ih=img.height*ratio;
-      ctx.drawImage(img, (W-iw)/2, (H-ih)/2, iw, ih);
-      // logo
-      const lw=Math.min(W*0.22, 280), lh=lw*(logo.height/(logo.width||1));
-      ctx.globalAlpha=0.9; ctx.fillStyle='rgba(255,255,255,0.85)'; ctx.fillRect(24,24,lw+16,lh+16);
-      ctx.globalAlpha=1; ctx.drawImage(logo, 32, 32, lw, lh);
-      if(!introSrc && introBuf){ introSrc = ac.createBufferSource(); introSrc.buffer=introBuf; introSrc.connect(introGain); introSrc.start(); }
-    }else{
-      if(!switching){ switching=true; vidEl.play(); }
-      ctx.drawImage(vidEl, 0, 0, W, H);
-      if(vidEl.ended){ rec.stop(); return; }
-    }
-    requestAnimationFrame(drawLoop);
-  };
-  requestAnimationFrame(drawLoop);
-  await done;
-  const blob = new Blob(chunks, { type:'video/webm' });
-  return URL.createObjectURL(blob);
 }
